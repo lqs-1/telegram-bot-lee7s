@@ -1,5 +1,6 @@
 # Update:从Telegram获取更新
 import logging
+import uuid
 
 from telegram import Update
 # ContextTypes:上下文类型
@@ -9,6 +10,8 @@ import json
 import os
 
 from app import BotConfig
+from app.db import User
+from app.db.models import UserFile
 from app.server.chatServer import get_chat
 
 
@@ -20,8 +23,23 @@ async def other_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    '''非命令文件回复 上传到aliyun'''
+    '''非命令文件回复 上传到aliyun
 
+    '''
+
+    from app import session
+
+    chat_id = update.effective_chat.id
+    message_id = update.effective_message.id
+
+    # 查出对应的用户 如果没有就创建出来 如果有的话 直接保存文件
+    tg_user = session.query(User).filter(User.username == str(chat_id)).first()
+    if tg_user is None:
+        tg_user = User(username=str(chat_id), password=BotConfig.TG_USER_LOGIN_MANAGER_PASSWORD, sex="男", email=f"{uuid.uuid4().hex}@gmail.com")
+        session.add(tg_user)
+        session.commit()
+
+    # 解析各种数据
     file_id = update.message.audio.file_id if update.message.document is None else update.message.document.file_id
     file_name = update.message.audio.file_name if update.message.document is None else update.message.document.file_name
     file_size = update.message.audio.file_size if update.message.document is None else update.message.document.file_size
@@ -32,11 +50,10 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     file_unique_id = update.message.audio.file_unique_id if update.message.document is None else update.message.document.file_unique_id
 
-
+    # 获取文件
     file = await context.bot.get_file(file_id)
-    chat_id = update.effective_chat.id
-    message_id = update.effective_message.id
 
+    # 将文件存储到本地
     await context.bot.send_message(chat_id=update.effective_chat.id, text="请等待,正在上传...")
 
     # 删除自己刚刚发的消息
@@ -57,5 +74,11 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.delete_message(chat_id, message_id + 1)
 
     logging.info(f"用户 {update.message.chat.username} 上传文件 {file_name} {file_size} 字节")
+
+    # 将上传到云的数据报错到数据库
+    tg_file = UserFile(userId=tg_user.id, file=str(result.get("web-file-url")).split(BotConfig.WEB_FILE_PREFIX)[1], fileType="tg_file", fileName=file_name)
+    session.add(tg_file)
+    session.commit()
+
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=result.get("msg") + "\n" + result.get("web-file-url"))

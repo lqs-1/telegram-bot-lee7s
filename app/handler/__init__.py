@@ -5,7 +5,7 @@ import os.path
 
 from telegram.ext import CommandHandler, MessageHandler, filters
 from telegram.ext._application import Application
-from app.handler.commandHandler import start, help, my, get_bot, group, unknown
+from app.handler.commandHandler import start, help, my, get_bot, group, unknown, get_file
 from app.handler.messageHandler import other_message, file_message
 
 
@@ -22,6 +22,8 @@ def register_all_handler(application: Application):
     application.add_handler(CommandHandler('group', group))
     logging.info("application register 'get_bot' command handler")
     application.add_handler(CommandHandler('get_bot', get_bot))
+    logging.info("application register 'get_file' command handler")
+    application.add_handler(CommandHandler('get_file', get_file))
 
     logging.info("application register not exist command handler")
     application.add_handler(MessageHandler(filters.COMMAND, unknown))

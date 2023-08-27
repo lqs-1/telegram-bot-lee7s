@@ -1,9 +1,14 @@
 # Update:从Telegram获取更新
 import logging
 
+from sqlalchemy import and_
 from telegram import Update
 # ContextTypes:上下文类型
 from telegram.ext import ContextTypes
+
+from app import BotConfig
+from app.db.models import UserFile, User
+
 
 # start命令
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,7 +32,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
            '/help 获取使用帮助\n' \
            '/my 获取个人信息,仅个人机器人页面使用\n' \
            '/group 获取群组信息,仅群组使用\n' \
-           '/get_bot 获取机器人信息,仅开发者机器人页面使用'
+           '/get_bot 获取机器人信息,仅开发者机器人页面使用\n' \
+           '/get_file 获取个人文件 直接用获取全部 /get_file 文件名 可模糊查询'
 
     logging.info(f"用户 {update.message.chat.username} 获取了帮助信息")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
@@ -58,7 +64,6 @@ async def my(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''获取群组信息'''
 
-    print(update)
     # 如果是个人账号就返回错误信息 如果是群组就返回群组信息
     if update.message.chat.type.title() == 'Supergroup':
         # 群组id
@@ -106,6 +111,34 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info(f"用户 {update.message.chat.username} 使用了未开发命令")
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''获取个人文件'''
+    from app import session
+
+    # 查出对应的用户 如果没有就是没有上传过文件
+    tg_user = session.query(User).filter(User.username == str(update.message.chat.id)).first()
+
+    if tg_user is None:
+        return await context.bot.send_message(chat_id=update.message.chat.id, text="您还未上传过文件")
+
+    # 是否为模糊匹配
+    if len(update.message.text.split(" ")) >= 2:
+        file_name = update.message.text.split(" ")[-1]
+        file_list = session.query(UserFile).filter(and_(UserFile.userId == tg_user.id, UserFile.fileName.like(f"%{file_name}%"))).all()
+        for file in file_list:
+            await context.bot.send_message(chat_id=update.message.chat.id,text=f'{file.fileName}: {BotConfig.WEB_FILE_PREFIX + file.file}')
+    # 全查
+    else:
+
+        file_list = session.query(UserFile).filter(UserFile.userId == tg_user.id).all()
+
+        for file in file_list:
+            await context.bot.send_message(chat_id=update.message.chat.id, text=f'{file.fileName}: {BotConfig.WEB_FILE_PREFIX + file.file}')
+
+
+
 
 
 

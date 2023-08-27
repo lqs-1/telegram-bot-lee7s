@@ -3,3 +3,4 @@ python-telegram-bot[socks]==20.1
 requests
 openai
 pymysql
+sqlalchemy

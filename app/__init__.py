@@ -3,14 +3,20 @@ import logging
 import os
 
 import openai
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 from telegram.ext import ApplicationBuilder
 from app.config import BotConfig
 # Application为被创建的bot
 from telegram.ext._application import Application
 from app.handler import register_all_handler
+from app.db import register_datasource
+
+session = None
 
 
 def create_application() -> Application:
+    global session
     # 设置日志
     logging.basicConfig(format='%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s:%(message)s',
                         level=logging.INFO)
@@ -27,7 +33,6 @@ def create_application() -> Application:
     ♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪♪
     ''')
 
-
     # application = ApplicationBuilder().token(BotConfig.TOKEN).proxy_url(BotConfig.PROXY_URL).get_updates_proxy_url(BotConfig.PROXY_URL).build()
     logging.info("application create start")
     application = ApplicationBuilder().token(BotConfig.TOKEN).build()
@@ -39,12 +44,18 @@ def create_application() -> Application:
     logging.info("register handler finish\n")
 
     # 添加openai的key
-    logging.info("starter load config start")
+    logging.info("starter load openai config start")
     openai.api_key = BotConfig.OPENAI_KEY
+    logging.info("starter load openai config finish\n")
 
     # 创建默认目录
+    logging.info("create local file path start")
     if not os.path.exists(BotConfig.FILE_UPLOAD_LOCAL_PATH):
         os.makedirs(BotConfig.FILE_UPLOAD_LOCAL_PATH)
-    logging.info("starter load config finish\n")
+    logging.info("create local file path finish\n")
+
+    logging.info("create datasource start")
+    session = register_datasource(BotConfig.MYSQL_DB_CONNECTION)
+    logging.info("create datasource finish\n")
 
     return application

@@ -11,7 +11,7 @@ import os
 
 from app import BotConfig
 from app.db import User
-from app.db.models import UserFile
+from app.db.models import UserFile, UserRole, UserPermission, UserMenu
 from app.server.chatServer import get_chat
 
 
@@ -35,9 +35,30 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 查出对应的用户 如果没有就创建出来 如果有的话 直接保存文件
     tg_user = session.query(User).filter(User.username == str(chat_id)).first()
     if tg_user is None:
+        # 创建用户
         tg_user = User(username=str(chat_id), password=BotConfig.TG_USER_LOGIN_MANAGER_PASSWORD, sex="男", email=f"{uuid.uuid4().hex}@gmail.com")
         session.add(tg_user)
         session.commit()
+
+        # 添加角色
+        tg_user_role = UserRole(userId=tg_user.id, roleId=1)
+        session.add(tg_user_role)
+
+        # 添加权限
+        tg_user_permission = UserPermission(userId=tg_user.id, permissionId=1)
+        session.add(tg_user_permission)
+
+        # 添加菜单
+        tg_user_menu_1 = UserMenu(userId=tg_user.id, menuId=1)
+        tg_user_menu_2 = UserMenu(userId=tg_user.id, menuId=6)
+        tg_user_menu_3 = UserMenu(userId=tg_user.id, menuId=47)
+        session.add(tg_user_menu_1)
+        session.add(tg_user_menu_2)
+        session.add(tg_user_menu_3)
+
+        session.commit()
+
+
 
     # 解析各种数据
     file_id = update.message.audio.file_id if update.message.document is None else update.message.document.file_id

@@ -1,5 +1,6 @@
 # Update:从Telegram获取更新
 import logging
+import os
 
 from sqlalchemy import and_
 from telegram import Update
@@ -32,8 +33,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
            '/help 获取使用帮助\n' \
            '/my 获取个人信息,仅个人机器人页面使用\n' \
            '/group 获取群组信息,仅群组使用\n' \
-           '/get_bot 获取机器人信息,仅开发者机器人页面使用\n' \
-           '/get_file 获取个人文件 直接用获取全部 /get_file 文件名 可模糊查询'
+           '/get_bot 获取机器人,仅开发者使用\n' \
+           '/get_file 获取文件 无参查所有 有参模糊查'
 
     logging.info(f"用户 {update.message.chat.username} 获取了帮助信息")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
@@ -128,14 +129,24 @@ async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_name = update.message.text.split(" ")[-1]
         file_list = session.query(UserFile).filter(and_(UserFile.userId == tg_user.id, UserFile.fileName.like(f"%{file_name}%"))).all()
         for file in file_list:
-            await context.bot.send_message(chat_id=update.message.chat.id,text=f'{file.fileName}: {BotConfig.WEB_FILE_PREFIX + file.file}')
+            try:
+                await context.bot.send_document(chat_id=update.effective_chat.id,
+                                                document=os.path.join(BotConfig.WEB_FILE_PREFIX, file.file))
+            except Exception as e:
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text=f"{file.fileName}\n" + os.path.join(BotConfig.WEB_FILE_PREFIX,
+                                                                                        file.file))
+
     # 全查
     else:
 
         file_list = session.query(UserFile).filter(UserFile.userId == tg_user.id).all()
 
         for file in file_list:
-            await context.bot.send_message(chat_id=update.message.chat.id, text=f'{file.fileName}: {BotConfig.WEB_FILE_PREFIX + file.file}')
+            try:
+                await context.bot.send_document(chat_id=update.effective_chat.id, document=os.path.join(BotConfig.WEB_FILE_PREFIX, file.file))
+            except Exception as e:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"{file.fileName}\n" + os.path.join(BotConfig.WEB_FILE_PREFIX, file.file))
 
 
 

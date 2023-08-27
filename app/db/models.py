@@ -44,6 +44,39 @@ class UserFile(BaseDB):
     def __str__(self):
         return f"{self.id},{self.userId},{self.file},{self.fileType},{self.isDelete},{self.uploadTime},{self.fileName},{self.deleteTime}"
 
+# 用户角色关系表
+class UserRole(BaseDB):
+    """必须继承Base"""
+
+    __tablename__ = "user_role"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    userId = Column(Integer, nullable=False)
+    roleId = Column(Integer, nullable=False)
+
+
+# 用户权限关系表
+class UserPermission(BaseDB):
+    """必须继承Base"""
+
+    __tablename__ = "user_permission"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    userId = Column(Integer, nullable=False)
+    permissionId = Column(Integer, nullable=False)
+
+
+# 用户菜单关系表
+class UserMenu(BaseDB):
+    """必须继承Base"""
+
+    __tablename__ = "user_menu"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    userId = Column(Integer, nullable=False)
+    menuId = Column(Integer, nullable=False)
+
+
 
 
 

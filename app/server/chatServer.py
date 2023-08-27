@@ -1,3 +1,5 @@
+import logging
+
 import openai
 
 
@@ -16,7 +18,12 @@ def get_chat(request) -> str:
             ],
 
         )
-        return chartResponse.get("choices")[0].get('message').get('content')
+
+        text = chartResponse.get("choices")[0].get('message').get('content')
+
+        logging.info(f"{request} 的回答 {text}")
+        return text
 
     except Exception as e:
+        logging.info(f"这次会话可能secretKey过期了 也可能网络故障")
         return "网络通信异常!"

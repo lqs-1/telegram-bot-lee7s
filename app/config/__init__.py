@@ -1,8 +1,8 @@
 class BotConfig:
 
-    TOKEN = "6650446178:AAFcaYrTBTM6aU27qV4XD8VrnGW0QNMpeU8"
+    TOKEN = "6650446178:"
     PROXY_URL = "socks5://127.0.0.1:7890"
-    OPENAI_KEY = "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"
+    OPENAI_KEY = "sk-"
     TG_USER_LOGIN_MANAGER_PASSWORD = "$2a$10$WfB6NRlpqxyho8vXmY49c.vFQu//GSc5D7tBaxNp3Ngzm2whsTtjO"
     WEB_FILE_PREFIX = "https://pub-pce.oss-cn-chengdu.aliyuncs.com/"
 

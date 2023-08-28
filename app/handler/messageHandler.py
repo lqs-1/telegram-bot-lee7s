@@ -18,8 +18,11 @@ from app.server.chatServer import get_chat
 async def other_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''非命令文字回复 暂时是chatGPT'''
 
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="回答正在路上...")
+    text = get_chat(update.message.text)
+    await context.bot.delete_message(update.effective_chat.id, update.effective_message.id + 1)
     logging.info(f"用户 {update.message.chat.username} 提问 {update.message.text}")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=get_chat(update.message.text))
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -37,7 +40,8 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tg_user = session.query(User).filter(User.username == str(chat_id)).first()
         if tg_user is None:
             # 创建用户
-            tg_user = User(username=str(chat_id), password=BotConfig.TG_USER_LOGIN_MANAGER_PASSWORD, sex="男", email=f"{uuid.uuid4().hex}@gmail.com")
+            tg_user = User(username=str(chat_id), password=BotConfig.TG_USER_LOGIN_MANAGER_PASSWORD, sex="男",
+                           email=f"{uuid.uuid4().hex}@gmail.com")
             session.add(tg_user)
             session.commit()
 
@@ -63,16 +67,15 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         session.close()
 
-
-
     # 解析各种数据
     file_id = update.message.audio.file_id if update.message.document is None else update.message.document.file_id
     file_name = update.message.audio.file_name if update.message.document is None else update.message.document.file_name
     file_size = update.message.audio.file_size if update.message.document is None else update.message.document.file_size
 
-    if file_size > 20*1024*1024:
+    if file_size > 20 * 1024 * 1024:
         logging.info(f"用户 {update.message.chat.username} 上传文件太大了 {file_size} 字节")
-        return await context.bot.send_message(chat_id=update.effective_chat.id, text="尊敬的用户请上传20MB以内的文件!!!")
+        return await context.bot.send_message(chat_id=update.effective_chat.id,
+                                              text="尊敬的用户请上传20MB以内的文件!!!")
 
     file_unique_id = update.message.audio.file_unique_id if update.message.document is None else update.message.document.file_unique_id
 
@@ -89,7 +92,8 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await file.download_to_drive(os.path.join(BotConfig.FILE_UPLOAD_LOCAL_PATH, file_name), )
 
     # 上传文件到云上
-    response = requests.post(BotConfig.FILE_UPLOAD_SYSTEM_PATH, files={"file": open(os.path.join(BotConfig.FILE_UPLOAD_LOCAL_PATH, file_name), "rb")})
+    response = requests.post(BotConfig.FILE_UPLOAD_SYSTEM_PATH,
+                             files={"file": open(os.path.join(BotConfig.FILE_UPLOAD_LOCAL_PATH, file_name), "rb")})
     # 将数据解析成json
     result = json.loads(response.text)
 
@@ -103,7 +107,8 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # 将上传到云的数据报错到数据库
-        tg_file = UserFile(userId=tg_user.id, file=str(result.get("web-file-url")).split(BotConfig.WEB_FILE_PREFIX)[1], fileType="tg_file", fileName=file_name)
+        tg_file = UserFile(userId=tg_user.id, file=str(result.get("web-file-url")).split(BotConfig.WEB_FILE_PREFIX)[1],
+                           fileType="tg_file", fileName=file_name)
         session.add(tg_file)
         session.commit()
     except Exception as e:
@@ -111,5 +116,5 @@ async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         session.close()
 
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=result.get("msg") + "\n" + result.get("web-file-url"))
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text=result.get("msg") + "\n" + result.get("web-file-url"))

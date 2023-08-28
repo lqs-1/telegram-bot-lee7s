@@ -128,6 +128,7 @@ async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(update.message.text.split(" ")) >= 2:
         file_name = update.message.text.split(" ")[-1]
         file_list = session.query(UserFile).filter(and_(UserFile.userId == tg_user.id, UserFile.fileName.like(f"%{file_name}%"))).all()
+        session.close()
         for file in file_list:
             try:
                 await context.bot.send_document(chat_id=update.effective_chat.id,
@@ -139,9 +140,8 @@ async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 全查
     else:
-
         file_list = session.query(UserFile).filter(UserFile.userId == tg_user.id).all()
-
+        session.close()
         for file in file_list:
             try:
                 await context.bot.send_document(chat_id=update.effective_chat.id, document=os.path.join(BotConfig.WEB_FILE_PREFIX, file.file))

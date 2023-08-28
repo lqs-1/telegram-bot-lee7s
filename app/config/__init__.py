@@ -11,5 +11,5 @@ class BotConfig:
     FILE_UPLOAD_LOCAL_PATH = "/home/somg/bot_file"
     FILE_UPLOAD_SYSTEM_PATH = "http://nobibibi.top:8888/somg/web-file-generate/simple"
 
-    MYSQL_DB_CONNECTION = "mysql+pymysql://somg:somg@172.245.10.200:3306/storage"
+    MYSQL_DB_CONNECTION = "mysql+pymysql://:@172.245.10.200:/storage"
     # MYSQL_DB_CONNECTION = "mysql+pymysql://root:123456@localhost:3306/storage"

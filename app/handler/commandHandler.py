@@ -1,7 +1,9 @@
 # Update:从Telegram获取更新
+import json
 import logging
 import os
 
+import requests
 from sqlalchemy import and_
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 # ContextTypes:上下文类型
@@ -9,6 +11,9 @@ from telegram.ext import ContextTypes
 
 from app import BotConfig
 from app.db.models import UserFile, User
+from app.server import chatServer
+from app.server.fileServer import no_keyword, has_keyword, construct_file
+from app.utils.filePaginationUtils import reply_markup_generator
 
 PAGE_SIZE = 1
 
@@ -135,57 +140,8 @@ async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                                                     file.file))
 
 
-async def construct_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """获取文件方法抽取"""
-
-    from app import session
-    chat_id = update.message.chat.id
-
-    # 查出对应的用户 如果没有就是没有上传过文件
-    tg_user = session.query(User).filter(User.username == str(chat_id)).first()
-
-    if tg_user is None:
-        return await context.bot.send_message(chat_id=chat_id, text="您还未上传过文件")
-
-    # 是否为模糊匹配
-    if len(update.message.text.split(" ")) >= 2:
-        file_name = update.message.text.split(" ")[-1]
-        file_list = has_keyword(session, file_name, tg_user.id, chat_id)
-
-    # 全查
-    else:
-        file_list = no_keyword(session, tg_user.id, chat_id)
-
-    return file_list
 
 
-def has_keyword(session, keyword, tg_user_id, chat_id):
-    """
-    关键字查询
-    :param session:
-    :param keyword:
-    :param tg_user_id:
-    :param chat_id:
-    :return:
-    """
-    file_list = session.query(UserFile).filter(
-        and_(UserFile.userId == tg_user_id, UserFile.fileName.like(f"%{keyword}%"))).all()
-    if chat_id == 5060527090:
-        lee7s_file_list = session.query(UserFile).filter(
-            and_(UserFile.userId == 46, UserFile.fileName.like(f"%{keyword}%"))).all()
-        file_list = file_list + lee7s_file_list
-    session.close()
-    return file_list
-
-
-def no_keyword(session, tg_user_id, chat_id):
-    """非关键字查询"""
-    file_list = session.query(UserFile).filter(UserFile.userId == tg_user_id).all()
-    if chat_id == 5060527090:
-        lee7s_file_list = session.query(UserFile).filter(UserFile.userId == 46).all()
-        file_list = file_list + lee7s_file_list
-    session.close()
-    return file_list
 
 
 async def get_file_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -202,7 +158,8 @@ async def get_file_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     number = 1
     for file in file_list:
         result_list.append(
-            f'{number} --"<a href="{os.path.join(BotConfig.WEB_FILE_PREFIX, file.file)}">{file.fileName}</a>')
+            f"{number} -- <a href='{os.path.join(BotConfig.WEB_FILE_PREFIX, file.file)}'>{file.fileName}</a>")
+
         number += 1
 
     await context.bot.send_message(chat_id=update.effective_chat.id,
@@ -244,46 +201,77 @@ async def reply_file_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard), disable_web_page_preview=True)
 
     except Exception as e:
-        pass
+        return
 
     # except Exception as e:
-    file_list = no_keyword(session, tg_user.id, chat_id)
-    total_file_num = len(file_list)
-    file_list, keyboard = reply_markup_generator(file_list, int(query.data), BotConfig.PER_PAGE_FILE_SIZE)
-    result_list = list()
-    number = 1
-    for file in file_list:
-        result_list.append(
-            f"{number} -- <a href='{os.path.join(BotConfig.WEB_FILE_PREFIX, file.file)}'>{file.fileName}</a>")
+    try:
+        file_list = no_keyword(session, tg_user.id, chat_id)
+        total_file_num = len(file_list)
+        file_list, keyboard = reply_markup_generator(file_list, int(query.data), BotConfig.PER_PAGE_FILE_SIZE)
+        result_list = list()
+        number = 1
+        for file in file_list:
+            result_list.append(
+                f"{number} -- <a href='{os.path.join(BotConfig.WEB_FILE_PREFIX, file.file)}'>{file.fileName}</a>")
 
-        number += 1
+            number += 1
 
-    await query.edit_message_text(text="\n\n".join(result_list) + f"\n\n第{query.data}页 共{total_file_num}文件",
-                                  parse_mode='HTML',
-                                  reply_markup=InlineKeyboardMarkup(keyboard), disable_web_page_preview=True)
+        await query.edit_message_text(text="\n\n".join(result_list) + f"\n\n第{query.data}页 共{total_file_num}文件",
+                                      parse_mode='HTML',
+                                      reply_markup=InlineKeyboardMarkup(keyboard), disable_web_page_preview=True)
+
+    except Exception as e:
+        return
 
 
-def reply_markup_generator(origin_data_list, to_page, page_limit):
-    """键盘和分页数据生成器"""
-    # 键盘
-    keyboard = list()
-    # 算出要分多少页数
-    total_page = (len(origin_data_list) + page_limit - 1) // page_limit
-    # 计算分页布局 每行5个页码
-    total_page_row = (total_page + BotConfig.PER_ROW_BUTTON_COUNT - 1) // BotConfig.PER_ROW_BUTTON_COUNT
-    # 根据行和列生成对应的页码键盘
-    for row in range(0, total_page_row):
-        current_row = list()
-        for col in range(1, BotConfig.PER_ROW_BUTTON_COUNT + 1):
-            if row * BotConfig.PER_ROW_BUTTON_COUNT * page_limit + (col - 1) * page_limit >= len(origin_data_list):
-                break
-            page = row * BotConfig.PER_ROW_BUTTON_COUNT + col
-            current_row.append(InlineKeyboardButton(str(page), callback_data=page))
 
-        keyboard.append(current_row)
 
-        if len(keyboard) >= total_page_row:
-            break
 
-    page_data = origin_data_list[(to_page - 1) * page_limit: to_page * page_limit]
-    return page_data, keyboard
+async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """定时任务回调函数"""
+    job = context.job
+    # response = requests.get(BotConfig.WEIBO_NEWS_REQUEST_API, headers={"username": "5060527090"})
+    # data_list = response.json().get('result_list')
+    # result_list = list()
+    # for index in range():
+    await context.bot.send_message("-1001679451720", text=chatServer.get_chat("给我发一句励志语录"))
+
+
+def remove_job_if_exists(name: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """删除定时任务"""
+    current_jobs = context.job_queue.get_jobs_by_name(name)
+    if not current_jobs:
+        return False
+    for job in current_jobs:
+        job.schedule_removal()
+    return True
+
+
+async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """添加一个定时任务"""
+    chat_id = update.effective_chat.id
+    try:
+        # 获取定时间隔时间
+        timer = float(context.args[0])
+        if timer < 0:
+            await update.effective_message.reply_text("定时时间不能小于0")
+            return
+
+        job_removed = remove_job_if_exists(str(chat_id), context)
+        context.job_queue.run_repeating(alarm, interval=timer, first=1, name=str(chat_id))
+
+        text = "定时任务设置成功"
+        if job_removed:
+            text += " 且删除了旧任务"
+        await update.effective_message.reply_text(text)
+
+    except (IndexError, ValueError):
+        await update.effective_message.reply_text("设置失败 请重新设置")
+
+
+async def unset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """取消定时任务."""
+    chat_id = update.effective_chat.id
+    job_removed = remove_job_if_exists(str(chat_id), context)
+    text = "任务取消成功" if job_removed else "你没有任务可以取消"
+    await update.message.reply_text(text)

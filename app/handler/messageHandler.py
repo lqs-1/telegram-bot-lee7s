@@ -17,12 +17,14 @@ from app.server.chatServer import get_chat
 
 async def other_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''非命令文字回复 暂时是chatGPT'''
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="回答正在路上...")
-    text = get_chat(update.message.text)
-    await context.bot.delete_message(update.effective_chat.id, update.effective_message.id + 1)
-    logging.info(f"用户 {update.message.chat.username} 提问 {update.message.text}")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    if update.message.chat.type.title() == 'Private':
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="回答正在路上...")
+        text = get_chat(update.message.text)
+        await context.bot.delete_message(update.effective_chat.id, update.effective_message.id + 1)
+        logging.info(f"用户 {update.message.chat.username} 提问 {update.message.text}")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    else:
+        return
 
 
 async def file_message(update: Update, context: ContextTypes.DEFAULT_TYPE):

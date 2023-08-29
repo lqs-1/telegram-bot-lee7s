@@ -4,7 +4,8 @@ import logging
 
 from telegram.ext import CommandHandler, MessageHandler, filters, CallbackQueryHandler
 from telegram.ext._application import Application
-from app.handler.commandHandler import start, help, my, get_bot, group, unknown, get_file, reply_file_page, get_file_list
+from app.handler.commandHandler import start, help, my, get_bot, group, unknown, get_file, reply_file_page, \
+    get_file_list, set_timer, unset
 from app.handler.messageHandler import other_message, file_message
 
 
@@ -23,6 +24,8 @@ def register_all_handler(application: Application):
     logging.info("application register 'get_file' command handler")
     application.add_handler(CommandHandler('get_file', get_file, block=False))
     application.add_handler(CommandHandler('get_f_list', get_file_list, block=False))
+    application.add_handler(CommandHandler("set", set_timer))
+    application.add_handler(CommandHandler("unset", unset))
 
     logging.info("application register not exist command handler")
     application.add_handler(MessageHandler(filters.COMMAND, unknown, block=False))

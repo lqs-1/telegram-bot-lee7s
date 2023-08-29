@@ -21,7 +21,7 @@ def get_chat(request) -> str:
 
         text = chartResponse.get("choices")[0].get('message').get('content')
 
-        logging.info(f"{request} 的回答 {text}")
+        logging.info(f"{request} 的回答\n{text}")
         return text
 
     except Exception as e:

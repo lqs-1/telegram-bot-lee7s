@@ -1,3 +1,4 @@
+import os
 from operator import and_
 
 from sqlalchemy import Update
@@ -6,10 +7,11 @@ from telegram.ext import ContextTypes
 from app.db.models import UserFile, User
 
 
+
 async def construct_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """获取文件方法抽取"""
+    from app import session, BotConfig
 
-    from app import session
     chat_id = update.message.chat.id
 
     # 查出对应的用户 如果没有就是没有上传过文件
@@ -56,3 +58,18 @@ def no_keyword(session, tg_user_id, chat_id):
         file_list = file_list + lee7s_file_list
     session.close()
     return file_list
+
+
+
+def get_file_by_part_url(file_url_part : str, g_user_id : str) -> str:
+    """
+    根据部分文件链接获取完整url
+    :param file_file:
+    :return:
+    """
+
+    from app import session, BotConfig
+
+    user_file = session.query(UserFile).filter(UserFile.file.like(f'%{file_url_part}%')).first()
+
+    return os.path.join(BotConfig.WEB_FILE_PREFIX, user_file.file) if user_file is not None else ""

@@ -14,10 +14,14 @@ async def construct_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = update.message.chat.id
 
-    # 查出对应的用户 如果没有就是没有上传过文件
-    tg_user = session.query(User).filter(User.username == str(chat_id)).first()
+    try:
+        # 查出对应的用户 如果没有就是没有上传过文件
+        tg_user = session.query(User).filter(User.username == str(chat_id)).first()
+    except Exception as e:
+        session.rollback()
 
     if tg_user is None:
+        session.close()
         return await context.bot.send_message(chat_id=chat_id, text="您还未上传过文件")
 
     # 是否为模糊匹配
@@ -40,23 +44,33 @@ def has_keyword(session, keyword, tg_user_id, chat_id):
     :param chat_id:
     :return:
     """
-    file_list = session.query(UserFile).filter(
+
+    try:
+        file_list = session.query(UserFile).filter(
         and_(UserFile.userId == tg_user_id, UserFile.fileName.like(f"%{keyword}%"))).order_by(UserFile.uploadTime.desc()).all()
-    if chat_id == 5060527090:
-        lee7s_file_list = session.query(UserFile).filter(
-            and_(UserFile.userId == 46, UserFile.fileName.like(f"%{keyword}%"))).order_by(UserFile.uploadTime.desc()).all()
-        file_list = file_list + lee7s_file_list
-    session.close()
+        if chat_id == 5060527090:
+            lee7s_file_list = session.query(UserFile).filter(
+                and_(UserFile.userId == 46, UserFile.fileName.like(f"%{keyword}%"))).order_by(UserFile.uploadTime.desc()).all()
+            file_list = file_list + lee7s_file_list
+    except Exception as e:
+        session.rollback()
+    finally:
+        session.close()
     return file_list
 
 
 def no_keyword(session, tg_user_id, chat_id):
     """非关键字查询"""
-    file_list = session.query(UserFile).filter(UserFile.userId == tg_user_id).order_by(UserFile.uploadTime.desc()).all()
-    if chat_id == 5060527090:
-        lee7s_file_list = session.query(UserFile).filter(UserFile.userId == 46).order_by(UserFile.uploadTime.desc()).all()
-        file_list = file_list + lee7s_file_list
-    session.close()
+    try:
+        file_list = session.query(UserFile).filter(UserFile.userId == tg_user_id).order_by(UserFile.uploadTime.desc()).all()
+        if chat_id == 5060527090:
+            lee7s_file_list = session.query(UserFile).filter(UserFile.userId == 46).order_by(UserFile.uploadTime.desc()).all()
+            file_list = file_list + lee7s_file_list
+    except Exception as e:
+        session.rollback()
+    finally:
+        session.close()
+    
     return file_list
 
 
@@ -69,7 +83,12 @@ def get_file_by_part_url(file_url_part : str, g_user_id : str) -> str:
     """
 
     from app import session, BotConfig
-
-    user_file = session.query(UserFile).filter(UserFile.file.like(f'%{file_url_part}%')).first()
+    
+    try:
+        user_file = session.query(UserFile).filter(UserFile.file.like(f'%{file_url_part}%')).first()
+    except Exception as e:
+        session.rollback()
+    finally:
+        session.close()
 
     return os.path.join(BotConfig.WEB_FILE_PREFIX, user_file.file) if user_file is not None else ""

@@ -196,10 +196,15 @@ async def reply_file_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     await query.answer()
 
-    # 查出对应的用户 如果没有就是没有上传过文件
-    tg_user = session.query(User).filter(User.username == str(chat_id)).first()
+    try:
+        # 查出对应的用户 如果没有就是没有上传过文件
+        tg_user = session.query(User).filter(User.username == str(chat_id)).first()
+    except Exception as e:
+        session.rollback()
+
 
     if tg_user is None:
+        session.close()
         return await context.bot.send_message(chat_id=chat_id, text="您还未上传过文件")
 
     # 是否为模糊匹配
